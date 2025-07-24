@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All-in-One Calculator Suite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        :root {
+            --font-family: 'Inter', sans-serif; --x-color-val: #00f2ff; --o-color-val: #ff00e0;
+        }
+        body.dark-theme {
+            --bg-color: #0d0c1d; --text-color: #e0e0e0; --container-bg: rgba(22, 21, 46, 0.85);
+            --accent-color: #39ff14; --glow-color: rgba(57, 255, 20, 0.6);
+            --key-bg: rgba(13, 12, 29, 0.8); --key-border: rgba(0, 242, 255, 0.15);
+            --key-border-hover: var(--x-color-val); --display-bg: rgba(13, 12, 29, 0.5);
+            --input-bg: rgba(13, 12, 29, 0.8); --input-border: rgba(0, 242, 255, 0.2);
+            --input-border-focus: var(--x-color-val); --result-bg: rgba(13, 12, 29, 0.5);
+            --simple-special-key: var(--x-color-val); --simple-op-key: var(--o-color-val);
+            --nav-btn-bg: transparent; --nav-btn-bg-hover: rgba(57, 255, 20, 0.2); --nav-btn-bg-active: var(--accent-color);
+        }
+        body.light-theme {
+            --bg-color: #f4f7fe; --text-color: #1e293b; --container-bg: rgba(255, 255, 255, 0.75);
+            --accent-color: #8b5cf6; --glow-color: rgba(139, 92, 246, 0.15);
+            --key-bg: rgba(255, 255, 255, 0.5); --key-border: rgba(0, 0, 0, 0.05);
+            --key-border-hover: var(--accent-color); --display-bg: rgba(0, 0, 0, 0.05);
+            --input-bg: rgba(255, 255, 255, 0.7); --input-border: rgba(0, 0, 0, 0.1);
+            --input-border-focus: var(--accent-color); --result-bg: rgba(255, 255, 255, 0.5);
+            --simple-special-key: var(--accent-color); --simple-op-key: #f43f5e;
+            --nav-btn-bg: transparent; --nav-btn-bg-hover: rgba(139, 92, 246, 0.1); --nav-btn-bg-active: var(--accent-color);
+        }
+
+        /* --- SHARED STYLES --- */
+        body { margin: 0; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; position: relative; transition: background-color 0.4s ease, color 0.4s ease; padding: 20px; box-sizing: border-box; }
+        .aurora-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; filter: blur(120px); opacity: 0.9; }
+        .aurora-shape { position: absolute; border-radius: 50%; animation: move 25s infinite alternate ease-in-out; }
+        .shape-1 { background-color: var(--x-color-val); width: 400px; height: 400px; top: 10%; left: 15%; animation-duration: 20s; }
+        .shape-2 { background-color: var(--o-color-val); width: 350px; height: 350px; top: 50%; left: 60%; animation-duration: 28s; }
+        .shape-3 { background-color: var(--accent-color); width: 300px; height: 300px; top: 60%; left: 5%; animation-duration: 22s; }
+        @keyframes move { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(100px, 50px) rotate(180deg); } }
+        
+        .main-wrapper { display: flex; align-items: center; gap: 15%; width: 100%; max-width: 960px; justify-content: center; }
+        .calculator-wrapper.hidden { display: none; }
+        .calculator-container {
+            position: relative; background: var(--container-bg); border-radius: 28px;
+            border: 1px solid var(--accent-color); padding: 24px;
+            text-align: center; 
+            width: 100%; max-width: 420px; display: flex; flex-direction: column; flex-shrink: 0;
+            min-height: 580px;
+            box-shadow: 0 0 35px -10px var(--glow-color), inset 0 0 15px rgba(57, 255, 20, 0.2);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+        .calculator-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 30px 45px rgba(0,0,0,0.25), 0 0 50px var(--accent-color);
+        }
+        .light-theme .calculator-container { box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15); backdrop-filter: blur(16px); }
+        .light-theme .calculator-container:hover { box-shadow: 0 30px 50px rgba(0,0,0,0.2); }
+        .theme-switcher { position: fixed; top: 20px; right: 20px; width: 50px; height: 26px; background-color: var(--container-bg); border-radius: 13px; cursor: pointer; padding: 3px; border: 1px solid var(--accent-color); z-index: 10; }
+        .theme-switcher-handle { width: 20px; height: 20px; background-color: var(--accent-color); border-radius: 50%; transition: transform 0.3s ease; }
+        .light-theme .theme-switcher-handle { transform: translateX(24px); }
+
+        /* --- RIGHT SIDEBAR (NAV + DETAILS) --- */
+        .sidebar-column { display: flex; flex-direction: column; gap: 20px; width: 300px; flex-shrink: 0; }
+        .nav-menu { display: flex; flex-direction: column; gap: 10px; }
+        .nav-menu button {
+            width: 100%; text-align: left; background: var(--nav-btn-bg); color: var(--text-color);
+            border: 1px solid var(--input-border); padding: 12px 16px; border-radius: 12px;
+            font-family: var(--font-family); font-size: 1rem; cursor: pointer; transition: all 0.2s ease;
+             box-shadow: 0 0 10px transparent;
+        }
+        .nav-menu button:hover { 
+            background: var(--nav-btn-bg-hover); 
+            border-color: var(--accent-color); 
+            transform: scale(1.04) translateX(5px); /* FIX: Increased individual zoom effect */
+        }
+        .nav-menu button.active { 
+            background: var(--nav-btn-bg-active); color: var(--bg-color); 
+            border-color: var(--accent-color); font-weight: 700; 
+            box-shadow: 0 0 25px -5px var(--accent-color), 0 0 10px var(--glow-color);
+        }
+        .light-theme .nav-menu button.active { color: white; box-shadow: 0 5px 15px var(--glow-color); }
+        .details-panel { 
+            background: var(--container-bg); border-radius: 16px; padding: 20px; 
+            border: 1px solid var(--input-border); box-shadow: 0 0 15px var(--glow-color);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+        .details-panel:hover {
+             transform: scale(1.03); /* FIX: Increased individual zoom effect */
+             box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 25px var(--glow-color);
+        }
+        .light-theme .details-panel { box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1); }
+        .light-theme .details-panel:hover { box-shadow: 0 15px 25px rgba(0, 0, 0, 0.15); }
+        .details-panel h3 { margin-top: 0; font-size: 1.2rem; color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color), 0 0 4px var(--accent-color); }
+        .light-theme .details-panel h3 { text-shadow: none; }
+        .details-panel p { font-size: 0.9rem; opacity: 0.8; line-height: 1.6; }
+
+        /* --- CREDITS --- */
+        .credits-footer { position: fixed; bottom: 20px; right: 20px; font-size: 0.9rem; opacity: 0.6; }
+
+        /* --- CALCULATOR-SPECIFIC STYLES --- */
+        .calc-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 16px; text-shadow: 0 0 12px var(--accent-color), 0 0 4px var(--accent-color); flex-shrink: 0; }
+        .light-theme .calc-title { text-shadow: none; }
+        .form-grid { display: grid; grid-template-columns: 1fr; gap: 14px; text-align: left; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 6px; font-size: 0.9rem; opacity: 0.8; }
+        .form-group input { background: var(--input-bg); border: 2px solid var(--input-border); border-radius: 12px; padding: 12px; color: var(--text-color); font-family: var(--font-family); font-size: 1rem; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+        .form-group input:focus { outline: none; border-color: var(--input-border-focus); box-shadow: 0 0 15px var(--glow-color); }
+        .calc-btn { 
+            margin-top: auto; padding: 14px 28px; font-size: 1.1rem; font-weight: 500; font-family: var(--font-family); 
+            border: 1px solid var(--accent-color); border-radius: 14px; cursor: pointer; 
+            background: transparent; color: var(--accent-color); transition: all 0.2s ease; 
+            box-shadow: 0 0 12px var(--glow-color); text-shadow: 0 0 12px var(--glow-color); 
+        }
+        .form-grid + .calc-btn { margin-top: 24px; }
+        .calc-btn:hover { background: var(--glow-color); color: var(--bg-color); box-shadow: 0 0 25px var(--glow-color), 0 0 40px var(--accent-color); }
+        .light-theme .calc-btn { background: var(--accent-color); color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); text-shadow: none; }
+        .light-theme .calc-btn:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        .results-container { margin-top: 20px; opacity: 0; transform: translateY(10px); transition: opacity 0.4s ease, transform 0.4s ease; display: flex; flex-direction: column; justify-content: flex-end;}
+        .results-container.visible { opacity: 1; transform: translateY(0); }
+        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--input-border); }
+        .result-item:last-child { border-bottom: none; }
+        .result-item span:first-child { font-weight: 500; opacity: 0.8; }
+        .result-item span:last-child { font-size: 1.2rem; font-weight: 700; color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color), 0 0 4px var(--accent-color);}
+        .light-theme .result-item span:last-child { color: var(--text-color); text-shadow: none; }
+        .bmi-category { font-size: 1.4rem; font-weight: 700; margin-top: 10px; }
+        
+        .simple-calc .calculator-display { background: var(--display-bg); border-radius: 16px; padding: 20px; text-align: right; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .simple-calc #history { min-height: 24px; font-size: 1rem; opacity: 0.6; word-wrap: break-word; }
+        .simple-calc #output { font-size: 3rem; font-weight: 500; min-height: 58px; word-wrap: break-word; word-break: break-all; }
+        .simple-calc .calculator-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: auto; }
+        .simple-calc .key { background: var(--key-bg); border: 2px solid var(--key-border); border-radius: 16px; font-size: 1.5rem; font-weight: 500; color: var(--text-color); padding: 18px; cursor: pointer; transition: all 0.2s ease; }
+        .light-theme .simple-calc .key { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+        .simple-calc .key:hover { border-color: var(--key-border-hover); box-shadow: 0 0 15px var(--glow-color); }
+        .light-theme .simple-calc .key:hover { box-shadow: 0 6px 12px var(--glow-color); }
+        .simple-calc .key:active { transform: translateY(2px); }
+        .simple-calc .key-double { grid-column: span 2; }
+        .simple-calc .key-special { color: var(--simple-special-key); }
+        .simple-calc .key-operator, .simple-calc .key-equal { color: var(--simple-op-key); }
+        .dark-theme .simple-calc .key-operator, .dark-theme .simple-calc .key-equal { text-shadow: 0 0 5px currentColor; }
+        .light-theme .simple-calc .key-operator, .light-theme .simple-calc .key-equal { background-color: var(--simple-op-key); color: white; }
+        .light-theme .simple-calc .key-special { color: var(--accent-color); }
+
+        @media (max-width: 850px) {
+            body { overflow-y: auto; }
+            .main-wrapper { flex-direction: column; gap: 30px; align-items: center; }
+            .sidebar-column { order: -1; width: 100%; max-width: 420px; }
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <div class="aurora-container">
+        <div class="aurora-shape shape-1"></div>
+        <div class="aurora-shape shape-2"></div>
+        <div class="aurora-shape shape-3"></div>
+    </div>
+    
+    <div class="theme-switcher" id="theme-switcher">
+        <div class="theme-switcher-handle"></div>
+    </div>
+    
+    <div class="main-wrapper">
+        <div id="calculators-column">
+            <div id="simple-page" class="calculator-wrapper">
+                <div class="calculator-container simple-calc">
+                     <h1 class="calc-title">Simple Calculator</h1>
+                    <div class="calculator-display"> <div id="history"></div> <div id="output">0</div> </div>
+                    <div class="calculator-keys">
+                        <button class="key key-special" data-type="clear">AC</button><button class="key key-special" data-type="backspace">C</button><button class="key key-special" data-type="percent">%</button><button class="key key-operator" data-type="operator" data-value="/">&divide;</button>
+                        <button class="key" data-type="number" data-value="7">7</button><button class="key" data-type="number" data-value="8">8</button><button class="key" data-type="number" data-value="9">9</button><button class="key key-operator" data-type="operator" data-value="*">&times;</button>
+                        <button class="key" data-type="number" data-value="4">4</button><button class="key" data-type="number" data-value="5">5</button><button class="key" data-type="number" data-value="6">6</button><button class="key key-operator" data-type="operator" data-value="-">&minus;</button>
+                        <button class="key" data-type="number" data-value="1">1</button><button class="key" data-type="number" data-value="2">2</button><button class="key" data-type="number" data-value="3">3</button><button class="key key-operator" data-type="operator" data-value="+">&plus;</button>
+                        <button class="key key-double" data-type="number" data-value="0">0</button><button class="key" data-type="decimal" data-value=".">.</button><button class="key key-equal" data-type="equal" data-value="=">=</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="compound-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container compound-calc">
+                    <h1 class="calc-title">Compounding Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="principal">Initial Investment ($)</label> <input type="number" id="principal" value="1000"> </div>
+                        <div class="form-group"> <label for="contribution">Monthly Contribution ($)</label> <input type="number" id="contribution" value="100"> </div>
+                        <div class="form-group"> <label for="interestRate">Annual Interest Rate (%)</label> <input type="number" id="interestRate" value="7"> </div>
+                        <div class="form-group"> <label for="years">Time in Years</label> <input type="number" id="years" value="10"> </div>
+                    </div>
+                    <button class="calc-btn" id="compoundCalculateBtn">Calculate</button>
+                    <div class="results-container" id="compound-results">
+                        <div class="result-item"> <span>Future Value</span> <span id="futureValue">$0</span> </div>
+                        <div class="result-item"> <span>Total Contributions</span> <span id="totalContributions">$0</span> </div>
+                        <div class="result-item"> <span>Total Interest Earned</span> <span id="totalInterest">$0</span> </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bmi-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container bmi-calc">
+                    <h1 class="calc-title">BMI Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="bmi-weight">Weight (kg)</label> <input type="number" id="bmi-weight" value="70"> </div>
+                        <div class="form-group"> <label for="bmi-height">Height (cm)</label> <input type="number" id="bmi-height" value="175"> </div>
+                    </div>
+                     <button class="calc-btn" id="bmiCalculateBtn">Calculate</button>
+                    <div class="results-container" id="bmi-results">
+                        <div class="result-item"> <span>Your BMI</span> <span id="bmi-value">0</span> </div>
+                        <p class="bmi-category" id="bmi-category"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="age-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container age-calc">
+                    <h1 class="calc-title">Age Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="birthdate">Your Date of Birth</label> <input type="date" id="birthdate"> </div>
+                    </div>
+                     <button class="calc-btn" id="ageCalculateBtn">Calculate Age</button>
+                    <div class="results-container" id="age-results">
+                        <div class="result-item"> <span>Years</span> <span id="age-years">0</span> </div>
+                        <div class="result-item"> <span>Months</span> <span id="age-months">0</span> </div>
+                        <div class="result-item"> <span>Days</span> <span id="age-days">0</span> </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loan-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container loan-calc">
+                    <h1 class="calc-title">Loan (EMI) Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="loan-amount">Loan Amount ($)</label> <input type="number" id="loan-amount" value="100000"> </div>
+                        <div class="form-group"> <label for="loan-rate">Annual Interest Rate (%)</label> <input type="number" id="loan-rate" value="5"> </div>
+                        <div class="form-group"> <label for="loan-years">Loan Tenure (Years)</label> <input type="number" id="loan-years" value="10"> </div>
+                    </div>
+                    <button class="calc-btn" id="loanCalculateBtn">Calculate EMI</button>
+                    <div class="results-container" id="loan-results">
+                        <div class="result-item"> <span>Monthly EMI</span> <span id="loan-emi">$0</span> </div>
+                        <div class="result-item"> <span>Total Interest</span> <span id="loan-interest">$0</span> </div>
+                        <div class="result-item"> <span>Total Payment</span> <span id="loan-total">$0</span> </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="discount-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container discount-calc">
+                    <h1 class="calc-title">Discount Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="original-price">Original Price ($)</label> <input type="number" id="original-price" value="100"> </div>
+                        <div class="form-group"> <label for="discount-percent">Discount (%)</label> <input type="number" id="discount-percent" value="25"> </div>
+                    </div>
+                     <button class="calc-btn" id="discountCalculateBtn">Calculate</button>
+                    <div class="results-container" id="discount-results">
+                        <div class="result-item"> <span>You Save</span> <span id="discount-saved">$0</span> </div>
+                        <div class="result-item"> <span>Final Price</span> <span id="discount-final">$0</span> </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="percentage-page" class="calculator-wrapper hidden">
+                 <div class="calculator-container percentage-calc">
+                    <h1 class="calc-title">Percentage Calculator</h1>
+                    <div class="form-grid">
+                        <div class="form-group"> <label for="percent-val">What is</label> <input type="number" id="percent-val" placeholder="e.g., 20"> </div>
+                        <div class="form-group"> <label for="percent-of">% of</label> <input type="number" id="percent-of" placeholder="e.g., 150"> </div>
+                    </div>
+                     <button class="calc-btn" id="percentageCalculateBtn">Calculate</button>
+                    <div class="results-container" id="percentage-results">
+                        <div class="result-item"> <span>Result</span> <span id="percentage-result">0</span> </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar-column">
+            <div class="nav-menu">
+                <button data-target="simple" class="active">Simple Calculator</button>
+                <button data-target="compound">Compounding Calculator</button>
+                <button data-target="bmi">BMI Calculator</button>
+                <button data-target="age">Age Calculator</button>
+                <button data-target="loan">Loan (EMI) Calculator</button>
+                <button data-target="discount">Discount Calculator</button>
+                <button data-target="percentage">Percentage Calculator</button>
+            </div>
+            <div class="details-panel" id="details-panel">
+                <h3 id="details-title"></h3>
+                <p id="details-text"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="credits-footer">This app is made by Zarar Ali 💗</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeSwitcher = document.getElementById('theme-switcher');
+            const body = document.body;
+            const navButtons = document.querySelectorAll('.nav-menu button');
+            const pages = document.querySelectorAll('.calculator-wrapper');
+            const detailsTitle = document.getElementById('details-title');
+            const detailsText = document.getElementById('details-text');
+
+            const calculatorDetails = {
+                simple: { title: "Simple Calculator", text: "A standard calculator for basic arithmetic operations. Use it for your daily calculations like addition, subtraction, multiplication, and division." },
+                compound: { title: "Compounding Calculator", text: "Calculate the future value of your investment with compound interest. Enter your initial amount, contributions, interest rate, and time period to see your money grow." },
+                bmi: { title: "BMI Calculator", text: "Body Mass Index (BMI) is a measure of body fat based on height and weight. Enter your details to check if you are in a healthy weight range." },
+                age: { title: "Age Calculator", text: "Find out your exact age in years, months, and days. Just enter your date of birth and see the result instantly." },
+                loan: { title: "Loan (EMI) Calculator", text: "Planning to take a loan? Calculate your Equated Monthly Installment (EMI) to manage your finances better. Enter the loan amount, interest rate, and tenure." },
+                discount: { title: "Discount Calculator", text: "Find out the final price after a discount. Enter the original price and the discount percentage to see how much you save." },
+                percentage: { title: "Percentage Calculator", text: "A quick tool to solve percentage problems. Find what is X% of Y in an instant." },
+            };
+
+            const sounds = {
+                click: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination(),
+                success: new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.2 } }).toDestination(),
+            };
+            function playSound(sound) { if (Tone.context.state !== 'running') Tone.start(); if (sound === 'click') sounds.click.triggerAttackRelease("C4", "8n"); if (sound === 'success') sounds.success.triggerAttackRelease("G5", "8n"); }
+            themeSwitcher.addEventListener('click', () => { playSound('click'); body.classList.toggle('dark-theme'); body.classList.toggle('light-theme'); });
+
+            function updateDetails(calcKey) {
+                const details = calculatorDetails[calcKey];
+                if (details) {
+                    detailsTitle.textContent = details.title;
+                    detailsText.textContent = details.text;
+                }
+            }
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    playSound('click');
+                    const targetId = button.dataset.target;
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    pages.forEach(page => page.classList.add('hidden'));
+                    document.getElementById(targetId + '-page').classList.remove('hidden');
+                    updateDetails(targetId);
+                });
+            });
+
+            initSimpleCalculator();
+            initCompoundCalculator();
+            initBmiCalculator();
+            initAgeCalculator();
+            initLoanCalculator();
+            initDiscountCalculator();
+            initPercentageCalculator();
+            
+            updateDetails('simple');
+
+            function initSimpleCalculator() {
+                const keys = document.querySelector('.simple-calc .calculator-keys');
+                let currentInput = '0', operator = null, firstOperand = null, waitingForSecondOperand = false;
+                function updateDisplay() { document.getElementById('output').textContent = currentInput; document.getElementById('history').textContent = (firstOperand !== null && operator) ? `${parseFloat(firstOperand.toFixed(7))} ${operator}` : ''; }
+                function calculate(a, b, op) { if (op === '/' && b === 0) return 'Error'; switch (op) { case '+': return a + b; case '-': return a - b; case '*': return a * b; case '/': return a / b; default: return b; } }
+                keys.addEventListener('click', (event) => {
+                    if (!event.target.matches('button')) return;
+                    playSound('click');
+                    const { type, value } = event.target.dataset;
+                    if (type === 'number') { if (waitingForSecondOperand) { currentInput = value; waitingForSecondOperand = false; } else { currentInput = currentInput.length >= 10 ? currentInput : (currentInput === '0' ? value : currentInput + value); } }
+                    if (type === 'decimal') { if (!currentInput.includes('.')) { currentInput += '.'; } }
+                    if (type === 'operator') { const inputValue = parseFloat(currentInput); if (operator && waitingForSecondOperand) { operator = value; } else if (firstOperand === null && !isNaN(inputValue)) { firstOperand = inputValue; } else if (operator) { const result = calculate(firstOperand, inputValue, operator); currentInput = `${parseFloat(result.toFixed(7))}`; firstOperand = result; } waitingForSecondOperand = true; operator = value; }
+                    if (type === 'equal' && operator && !waitingForSecondOperand) { const result = calculate(firstOperand, parseFloat(currentInput), operator); currentInput = `${parseFloat(result.toFixed(7))}`; firstOperand = null; operator = null; waitingForSecondOperand = true; }
+                    if (type === 'clear') { currentInput = '0'; operator = null; firstOperand = null; waitingForSecondOperand = false; }
+                    if (type === 'backspace' && !waitingForSecondOperand) { currentInput = currentInput.length > 1 ? currentInput.slice(0, -1) : '0'; }
+                    if (type === 'percent') { const curr = parseFloat(currentInput); currentInput = (firstOperand === null ? curr / 100 : (firstOperand * curr) / 100).toString(); }
+                    updateDisplay();
+                });
+                updateDisplay();
+            }
+
+            function initCompoundCalculator() {
+                const calculateBtn = document.getElementById('compoundCalculateBtn');
+                const resultsEl = document.getElementById('compound-results');
+                function calculate() {
+                    const principal = parseFloat(document.getElementById('principal').value) || 0;
+                    const monthlyContribution = parseFloat(document.getElementById('contribution').value) || 0;
+                    const annualRate = parseFloat(document.getElementById('interestRate').value) || 0;
+                    const years = parseFloat(document.getElementById('years').value) || 0;
+                    const monthlyRate = annualRate / 100 / 12;
+                    const numPayments = years * 12;
+                    const fvPrincipal = principal * Math.pow(1 + monthlyRate, numPayments);
+                    const fvContributions = monthlyRate === 0 ? monthlyContribution * numPayments : monthlyContribution * ((Math.pow(1 + monthlyRate, numPayments) - 1) / monthlyRate);
+                    const futureValue = fvPrincipal + fvContributions;
+                    const totalContributions = principal + (monthlyContribution * numPayments);
+                    const totalInterest = futureValue - totalContributions;
+                    const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                    document.getElementById('futureValue').textContent = currencyFormatter.format(futureValue);
+                    document.getElementById('totalContributions').textContent = currencyFormatter.format(totalContributions);
+                    document.getElementById('totalInterest').textContent = currencyFormatter.format(totalInterest);
+                    resultsEl.classList.add('visible');
+                    playSound('success');
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+
+            function initBmiCalculator() {
+                const calculateBtn = document.getElementById('bmiCalculateBtn');
+                const resultsEl = document.getElementById('bmi-results');
+                function calculate() {
+                    const weight = parseFloat(document.getElementById('bmi-weight').value) || 0;
+                    const height = parseFloat(document.getElementById('bmi-height').value) || 0;
+                    if (weight > 0 && height > 0) {
+                        const bmi = weight / Math.pow(height / 100, 2);
+                        document.getElementById('bmi-value').textContent = bmi.toFixed(1);
+                        let category = '';
+                        if (bmi < 18.5) category = 'Underweight';
+                        else if (bmi < 25) category = 'Normal';
+                        else if (bmi < 30) category = 'Overweight';
+                        else category = 'Obese';
+                        document.getElementById('bmi-category').textContent = category;
+                        resultsEl.classList.add('visible');
+                        playSound('success');
+                    }
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+
+            function initAgeCalculator() {
+                const calculateBtn = document.getElementById('ageCalculateBtn');
+                const birthdateEl = document.getElementById('birthdate');
+                const resultsEl = document.getElementById('age-results');
+                function calculate() {
+                    const birthDate = new Date(birthdateEl.value);
+                    if (!isNaN(birthDate.getTime())) {
+                        const today = new Date();
+                        let years = today.getFullYear() - birthDate.getFullYear();
+                        let months = today.getMonth() - birthDate.getMonth();
+                        let days = today.getDate() - birthDate.getDate();
+                        if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+                        if (months < 0) { years--; months += 12; }
+                        document.getElementById('age-years').textContent = years;
+                        document.getElementById('age-months').textContent = months;
+                        document.getElementById('age-days').textContent = days;
+                        resultsEl.classList.add('visible');
+                        playSound('success');
+                    }
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+
+            function initLoanCalculator() {
+                const calculateBtn = document.getElementById('loanCalculateBtn');
+                const resultsEl = document.getElementById('loan-results');
+                function calculate() {
+                    const P = parseFloat(document.getElementById('loan-amount').value) || 0;
+                    const annualRate = parseFloat(document.getElementById('loan-rate').value) || 0;
+                    const years = parseFloat(document.getElementById('loan-years').value) || 0;
+                    if (P > 0 && annualRate > 0 && years > 0) {
+                        const r = annualRate / 100 / 12;
+                        const n = years * 12;
+                        const emi = P * r * (Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+                        const totalPayment = emi * n;
+                        const totalInterest = totalPayment - P;
+                        const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                        document.getElementById('loan-emi').textContent = currencyFormatter.format(emi);
+                        document.getElementById('loan-interest').textContent = currencyFormatter.format(totalInterest);
+                        document.getElementById('loan-total').textContent = currencyFormatter.format(totalPayment);
+                        resultsEl.classList.add('visible');
+                        playSound('success');
+                    }
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+            
+            function initDiscountCalculator() {
+                const calculateBtn = document.getElementById('discountCalculateBtn');
+                const resultsEl = document.getElementById('discount-results');
+                function calculate() {
+                    const price = parseFloat(document.getElementById('original-price').value) || 0;
+                    const discount = parseFloat(document.getElementById('discount-percent').value) || 0;
+                    if(price > 0 && discount >= 0) {
+                        const saved = (price * discount) / 100;
+                        const finalPrice = price - saved;
+                        const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+                        document.getElementById('discount-saved').textContent = currencyFormatter.format(saved);
+                        document.getElementById('discount-final').textContent = currencyFormatter.format(finalPrice);
+                        resultsEl.classList.add('visible');
+                        playSound('success');
+                    }
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+            
+            function initPercentageCalculator() {
+                const calculateBtn = document.getElementById('percentageCalculateBtn');
+                const resultsEl = document.getElementById('percentage-results');
+                function calculate() {
+                    const percent = parseFloat(document.getElementById('percent-val').value) || 0;
+                    const of = parseFloat(document.getElementById('percent-of').value) || 0;
+                    if(of !== 0) {
+                        const result = (percent / 100) * of;
+                        document.getElementById('percentage-result').textContent = result.toLocaleString();
+                        resultsEl.classList.add('visible');
+                        playSound('success');
+                    }
+                }
+                calculateBtn.addEventListener('click', calculate);
+            }
+            
+        });
+    </script>
+</body>
+</html>
